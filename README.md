@@ -5,7 +5,7 @@
 サーバーへのアップロード不要で、完全にブラウザ内（ローカル環境）で動作するセキュアなPDF圧縮ウェブアプリケーションです。
 HTML、CSS、JavaScriptのみで構成されているため、特別な環境構築は不要で、Chromebookなどの低スペックPCでもサクサク動作します。
 
-![](thumbnail.jpg)
+![image](thumbnail.jpg)
 
 ## 📝 概要
 
