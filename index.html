@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>セキュアPDF圧縮ツール</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <!-- jsPDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4 font-sans text-gray-800">
+
+    <div class="bg-white max-w-2xl w-full rounded-2xl shadow-xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-blue-600 p-6 text-white text-center">
+            <h1 class="text-3xl font-bold mb-2 flex items-center justify-center gap-2">
+                <i data-lucide="file-down" class="w-8 h-8"></i>
+                PDF圧縮ツール
+            </h1>
+            <p class="text-blue-100 text-sm">
+                サーバーへのアップロード不要。ブラウザ内で安全にPDFサイズを縮小します。
+            </p>
+        </div>
+
+        <div class="p-6 md:p-8">
+            <!-- 注意書き -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded text-sm text-yellow-800 flex items-start gap-3">
+                <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0 mt-0.5"></i>
+                <div>
+                    <p class="font-bold mb-1">仕様に関するご注意</p>
+                    <p>このツールはPDFの各ページを画像化（ラスタライズ）して再構築することでサイズを縮小します。そのため、<strong>圧縮後のPDFはテキストの検索やコピーができなくなります</strong>のでご注意ください。</p>
+                </div>
+            </div>
+
+            <!-- Step 1: File Upload -->
+            <div id="upload-section" class="block">
+                <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition duration-300">
+                    <input type="file" id="file-input" accept="application/pdf" class="hidden">
+                    <i data-lucide="upload-cloud" class="w-16 h-16 text-gray-400 mx-auto mb-4"></i>
+                    <p class="text-lg font-medium text-gray-700 mb-1">PDFファイルをここにドロップ</p>
+                    <p class="text-sm text-gray-500">または クリックしてファイルを選択</p>
+                </div>
+            </div>
+
+            <!-- Step 2: Settings -->
+            <div id="settings-section" class="hidden space-y-6">
+                <!-- ファイル情報 -->
+                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <i data-lucide="file-text" class="w-8 h-8 text-blue-500 shrink-0"></i>
+                        <div class="overflow-hidden">
+                            <p id="file-name" class="font-medium text-gray-800 truncate"></p>
+                            <p id="file-size" class="text-xs text-gray-500"></p>
+                        </div>
+                    </div>
+                    <button id="btn-cancel" class="text-gray-400 hover:text-red-500 transition shrink-0 p-2" title="キャンセル">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- 圧縮レベル -->
+                <div>
+                    <h3 class="text-sm font-bold text-gray-700 mb-3">圧縮レベルの選択</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <!-- 低圧縮 -->
+                        <label class="cursor-pointer">
+                            <input type="radio" name="compression" value="low" class="peer sr-only">
+                            <div class="p-4 rounded-xl border-2 border-gray-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:bg-gray-50 transition text-center">
+                                <div class="font-bold text-gray-800 mb-1">低圧縮</div>
+                                <div class="text-xs text-gray-500">高画質・サイズ大</div>
+                            </div>
+                        </label>
+                        <!-- 中圧縮 (Default) -->
+                        <label class="cursor-pointer">
+                            <input type="radio" name="compression" value="medium" class="peer sr-only" checked>
+                            <div class="p-4 rounded-xl border-2 border-gray-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:bg-gray-50 transition text-center">
+                                <div class="font-bold text-gray-800 mb-1">中圧縮</div>
+                                <div class="text-xs text-gray-500">標準バランス</div>
+                            </div>
+                        </label>
+                        <!-- 高圧縮 -->
+                        <label class="cursor-pointer">
+                            <input type="radio" name="compression" value="high" class="peer sr-only">
+                            <div class="p-4 rounded-xl border-2 border-gray-200 peer-checked:border-blue-500 peer-checked:bg-blue-50 hover:bg-gray-50 transition text-center">
+                                <div class="font-bold text-gray-800 mb-1">高圧縮</div>
+                                <div class="text-xs text-gray-500">低画質・サイズ小</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <button id="btn-compress" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
+                    <i data-lucide="zap" class="w-5 h-5"></i>
+                    圧縮を開始する
+                </button>
+            </div>
+
+            <!-- Step 3: Progress -->
+            <div id="progress-section" class="hidden py-8 text-center">
+                <i data-lucide="loader-2" class="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4"></i>
+                <h3 class="text-lg font-bold text-gray-800 mb-2">圧縮処理中...</h3>
+                <p id="progress-text" class="text-sm text-gray-500 mb-4">ページを解析しています</p>
+                <div class="w-full bg-gray-200 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Step 4: Result -->
+            <div id="result-section" class="hidden text-center py-4">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 text-green-500 mb-4">
+                    <i data-lucide="check-circle-2" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-6">圧縮が完了しました！</h3>
+
+                <div class="flex flex-col md:flex-row justify-center items-center gap-4 mb-8">
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 w-full md:w-1/2">
+                        <p class="text-xs text-gray-500 mb-1">元のサイズ</p>
+                        <p id="result-old-size" class="text-xl font-medium text-gray-700"></p>
+                    </div>
+                    <i data-lucide="arrow-right" class="text-gray-400 hidden md:block"></i>
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 w-full md:w-1/2">
+                        <p class="text-xs text-blue-500 mb-1">圧縮後のサイズ</p>
+                        <p id="result-new-size" class="text-2xl font-bold text-blue-600"></p>
+                        <p id="result-ratio" class="text-xs text-blue-600 font-medium mt-1"></p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button id="btn-download" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center gap-2 shadow-lg shadow-green-200">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                        ダウンロード
+                    </button>
+                    <button id="btn-reset" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center gap-2">
+                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                        別のファイルを圧縮
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // DOM Elements
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const uploadSection = document.getElementById('upload-section');
+        const settingsSection = document.getElementById('settings-section');
+        const progressSection = document.getElementById('progress-section');
+        const resultSection = document.getElementById('result-section');
+        
+        const fileNameEl = document.getElementById('file-name');
+        const fileSizeEl = document.getElementById('file-size');
+        const btnCancel = document.getElementById('btn-cancel');
+        const btnCompress = document.getElementById('btn-compress');
+        
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        
+        const resultOldSize = document.getElementById('result-old-size');
+        const resultNewSize = document.getElementById('result-new-size');
+        const resultRatio = document.getElementById('result-ratio');
+        const btnDownload = document.getElementById('btn-download');
+        const btnReset = document.getElementById('btn-reset');
+
+        let selectedFile = null;
+        let compressedBlob = null;
+
+        // Utilities
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function showSection(sectionId) {
+            [uploadSection, settingsSection, progressSection, resultSection].forEach(el => {
+                el.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        // File Selection Handlers
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-blue-500', 'bg-blue-50');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (file.type !== 'application/pdf') {
+                alert('PDFファイルを選択してください。');
+                return;
+            }
+            selectedFile = file;
+            fileNameEl.textContent = file.name;
+            fileSizeEl.textContent = formatBytes(file.size);
+            showSection('settings-section');
+        }
+
+        // Reset & Cancel
+        btnCancel.addEventListener('click', resetApp);
+        btnReset.addEventListener('click', resetApp);
+
+        function resetApp() {
+            selectedFile = null;
+            compressedBlob = null;
+            fileInput.value = '';
+            progressBar.style.width = '0%';
+            showSection('upload-section');
+        }
+
+        // Compression Logic
+        btnCompress.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            showSection('progress-section');
+            const level = document.querySelector('input[name="compression"]:checked').value;
+            
+            // 圧縮設定の定義 (解像度スケールとJPEG品質)
+            let scale = 1.5;
+            let quality = 0.65;
+
+            if (level === 'high') {
+                scale = 1.2; // 粗すぎない程度
+                quality = 0.4;
+            } else if (level === 'medium') {
+                scale = 1.5;
+                quality = 0.65;
+            } else if (level === 'low') {
+                scale = 2.0; // 高画質
+                quality = 0.85;
+            }
+
+            try {
+                const arrayBuffer = await selectedFile.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const numPages = pdf.numPages;
+
+                const { jsPDF } = window.jspdf;
+                let newPdf = null;
+
+                for (let i = 1; i <= numPages; i++) {
+                    // Update UI
+                    progressText.textContent = `ページ ${i} / ${numPages} を処理中...`;
+                    progressBar.style.width = `${((i - 1) / numPages) * 100}%`;
+
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: scale });
+
+                    // Canvasの作成とレンダリング
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                    // JPEGとして画像を抽出
+                    const imgData = canvas.toDataURL('image/jpeg', quality);
+
+                    // 元のPDFサイズ（ポイント単位）を計算
+                    const pdfWidth = viewport.width / scale;
+                    const pdfHeight = viewport.height / scale;
+                    const orientation = pdfWidth > pdfHeight ? 'l' : 'p';
+
+                    if (i === 1) {
+                        newPdf = new jsPDF({ orientation: orientation, unit: 'pt', format: [pdfWidth, pdfHeight] });
+                    } else {
+                        newPdf.addPage([pdfWidth, pdfHeight], orientation);
+                    }
+
+                    newPdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    
+                    // メモリ解放の補助
+                    canvas.width = 0;
+                    canvas.height = 0;
+                }
+
+                progressText.textContent = 'PDFを生成中...';
+                progressBar.style.width = '100%';
+
+                // わずかな遅延を入れてUIを更新させる
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                compressedBlob = newPdf.output('blob');
+                showResult();
+
+            } catch (error) {
+                console.error(error);
+                alert('圧縮処理中にエラーが発生しました。パスワード保護されたPDFなどは処理できない場合があります。');
+                resetApp();
+            }
+        });
+
+        // Show Result
+        function showResult() {
+            showSection('result-section');
+            
+            const oldSize = selectedFile.size;
+            const newSize = compressedBlob.size;
+            
+            resultOldSize.textContent = formatBytes(oldSize);
+            resultNewSize.textContent = formatBytes(newSize);
+            
+            if (newSize < oldSize) {
+                const ratio = Math.round((1 - (newSize / oldSize)) * 100);
+                resultRatio.textContent = `(${ratio}% 削減)`;
+                resultRatio.className = "text-xs text-green-600 font-bold mt-1";
+            } else {
+                resultRatio.textContent = `(元のファイルより大きくなりました)`;
+                resultRatio.className = "text-xs text-red-500 font-bold mt-1";
+            }
+        }
+
+        // Download Action
+        btnDownload.addEventListener('click', () => {
+            if (!compressedBlob) return;
+            const url = URL.createObjectURL(compressedBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `compressed_${selectedFile.name}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+    </script>
+</body>
+</html>
